@@ -76,7 +76,7 @@ class Tool:
     def execute(
             self,
             *args: Any,
-            cost_aware: bool,
+            cost_aware: bool = False,
             **kwargs: Any
     ) -> Any:
         """

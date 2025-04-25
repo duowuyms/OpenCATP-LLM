@@ -81,7 +81,7 @@ class ToolManager:
             # Load all tasks and all models
             if model_name == 'all_models':
                 for task_name_item in MODEL_REGISTRY:
-                    log.info(f'Initializing all models for task: {task_name_item}')
+                    log.opt(colors=True).info(f'Initializing all models for task: <blue>{task_name_item}</blue>')
                     for model_name_item in MODEL_REGISTRY[task_name_item]:
                         self.load_model(task_name_item, model_name_item)
             else:
@@ -130,7 +130,8 @@ class ToolManager:
             available_models = list(MODEL_REGISTRY[task_name].keys())
             if not available_models:
                 raise ValueError(f"No available models for task '{task_name}'.")
-            log.info(f'No model_name specified in {task_name}, using default model: {available_models[0]}')
+            log.opt(colors=True).info(
+                f'No model_name specified in {task_name}, using default model: {available_models[0]}')
             model_name = available_models[0]
 
         # Retrieve or create the group for this task
@@ -142,3 +143,27 @@ class ToolManager:
 
         # Return the requested model (tool) instance
         return group.get_model(model_name)
+
+
+tool_manager: ToolManager
+_tool_manager = None
+
+
+def __getattr__(name):
+    """
+    Custom attribute access for the ToolManager instance.
+    This allows for lazy initialization of the ToolManager.
+
+    Args:
+        name: The name of the attribute being accessed.
+
+    Returns:
+        The ToolManager instance or the requested attribute.
+    """
+    if name == 'tool_manager':
+        global _tool_manager
+        if _tool_manager is None:
+            _tool_manager = ToolManager()
+        return _tool_manager
+
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")

@@ -16,3 +16,10 @@ hf_cache/
 /logs
 /code_test
 /graph.png
+/test*
+
+# pixi environments
+.pixi
+*.egg-info
+.pixi.lock
+.gitattributes

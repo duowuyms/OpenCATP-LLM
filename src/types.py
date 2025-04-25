@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from typing import List, Literal, TypedDict, NotRequired
 
 from torch import Tensor
@@ -24,6 +23,7 @@ class DataIncludeImageAndText(TypedDict):
 
 
 TaskName = Literal[
+    'input_of_query',
     'sentiment_analysis',
     'machine_translation',
     'image_classification',

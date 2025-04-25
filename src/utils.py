@@ -5,8 +5,8 @@ import matplotlib.pyplot as plt
 import torch
 
 from src.config import TOOL_GPU_MEMORY_ALLOC_LIMIT, DEFAULT_START_TASK_NAME
-from src.plan.plan_graph import PlanGraph
 from src.types import TaskName
+from src.plan.plan_graph import PlanGraph
 
 
 def get_available_device(device_list):
@@ -64,7 +64,22 @@ def print_graph(graph: PlanGraph, *, save_path=None):
         G.add_edge(edge.source().node_id, edge.target().node_id)
 
     nx.draw(G, with_labels=True, node_color='skyblue', node_size=500, font_size=10, font_weight='bold')
-    
+
     if save_path is not None:
         plt.savefig(save_path)
     plt.show()
+
+
+def get_model_parameters_size(model: torch.nn.Module, size: str = 'mb'):
+    total_bytes = 0
+    for p in model.parameters():
+        total_bytes += p.numel() * p.element_size()
+
+    if size == 'kb':
+        total_size = total_bytes / 1024
+    elif size == 'mb':
+        total_size = total_bytes / (1024 ** 2)
+    else:
+        total_size = total_bytes
+
+    return total_size

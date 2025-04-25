@@ -10,6 +10,10 @@ import numpy as np
 
 from transformers import (
     AutoTokenizer,
+    AutoProcessor,
+    AutoImageProcessor,
+    AutoModelForImageClassification,
+    AutoModelForImageTextToText,
     # AutoModelForQuestionAnswering,
     AutoModelForSequenceClassification,
     AutoModelForSeq2SeqLM,
@@ -19,7 +23,6 @@ from transformers import (
     DetrForObjectDetection,
     ViTImageProcessor,
     ViTForImageClassification,
-    AutoImageProcessor,
     Swin2SRForImageSuperResolution,
     ViltProcessor,
     ViltForQuestionAnswering,
@@ -82,7 +85,7 @@ class GroupedTools(ABC):
         if model_name in self.models:
             return
 
-        log.info(f"Task: {self.task_name}, loading model: {model_name}")
+        log.opt(colors=True).info(f"Task: <blue>{self.task_name}</blue>, loading model: <green>{model_name}</green>")
         model_config = self._get_model_config(model_name)
 
         model, process, extra_args = self._create_model(model_name, model_config)
@@ -117,13 +120,16 @@ class SentimentAnalysisTools(GroupedTools):
             self, model_name: ModelName, model_config: ModelConfig
     ) -> Tuple[Any, Callable, Dict]:
         match model_name:
-            case "distilbert-sst2":
+            case "distilbert-sst2" | "bert-base-multilingual" | "twitter-roberta-base":
                 tokenizer = AutoTokenizer.from_pretrained(
                     model_config.hf_url, cache_dir=GlobalPathConfig.hf_cache
                 )
                 model = AutoModelForSequenceClassification.from_pretrained(
                     model_config.hf_url, cache_dir=GlobalPathConfig.hf_cache
                 )
+
+                # modify the model config to work on 2-class sentiment analysis
+                model.config.id2label = {0: 'negative', 1: 'positive'}
 
                 def process(
                         input_data: DataIncludeText, device: str
@@ -137,7 +143,13 @@ class SentimentAnalysisTools(GroupedTools):
 
                     # Apply softmax to get probabilities
                     probabilities = torch.softmax(model_output.logits, dim=-1)
-                    
+
+                    prob_length = probabilities.shape[-1]
+                    half = prob_length // 2
+                    first_prob = probabilities.narrow(-1, 0, half).sum(dim=-1)
+                    second_prob = probabilities.narrow(-1, prob_length - half, half).sum(dim=-1)
+                    probabilities = torch.stack([first_prob, second_prob], dim=-1)
+
                     # Grab the argmax of probabilities
                     pred_ids = torch.argmax(probabilities, dim=1)
                     pred_labels = [model.config.id2label[p.item()] for p in pred_ids]
@@ -169,7 +181,7 @@ class MachineTranslationTools(GroupedTools):
             self, model_name: ModelName, model_config: ModelConfig
     ) -> Tuple[Any, Callable, Dict]:
         match model_name:
-            case "t5-base":
+            case "t5-base" | "t5-small" | "t5-large":
                 tokenizer = AutoTokenizer.from_pretrained(
                     model_config.hf_url, cache_dir=GlobalPathConfig.hf_cache
                 )
@@ -235,6 +247,34 @@ class ImageClassificationTools(GroupedTools):
                     model_config.hf_url, cache_dir=GlobalPathConfig.hf_cache
                 )
                 model = ViTForImageClassification.from_pretrained(
+                    model_config.hf_url, cache_dir=GlobalPathConfig.hf_cache
+                )
+
+                def process(
+                        input_data: DataIncludeImage, device: str
+                ) -> Dict[str, Any]:
+                    inputs = processor(
+                        images=input_data["image"], return_tensors="pt"
+                    ).to(device)
+                    with torch.no_grad():
+                        outputs = model(**inputs)
+                    predicted_ids = outputs.logits.argmax(dim=1)
+                    predicted_labels = [
+                        model.config.id2label[idx.item()] for idx in predicted_ids
+                    ]
+                    new_data = {"text-label": predicted_labels}
+
+                    updated_data = input_data.copy()
+                    updated_data.update(new_data)
+                    return updated_data
+
+                return model, process, {"processor": processor}
+
+            case "resnet-50" | "mobilenet-v2":
+                processor = AutoImageProcessor.from_pretrained(
+                    model_config.hf_url, cache_dir=GlobalPathConfig.hf_cache, use_fast=True
+                )
+                model = AutoModelForImageClassification.from_pretrained(
                     model_config.hf_url, cache_dir=GlobalPathConfig.hf_cache
                 )
 
@@ -666,7 +706,36 @@ class ImageCaptioningTools(GroupedTools):
                     updated_data.update(new_data)
                     return updated_data
 
-                return model, process, {"tokenizer": tokenizer}
+                return model, process, {"processor": processor, "tokenizer": tokenizer}
+
+            case "blip-large" | "git-base-coco":
+                processor = AutoProcessor.from_pretrained(
+                    model_config.hf_url, cache_dir=GlobalPathConfig.hf_cache, use_fast=True
+                )
+                model = AutoModelForImageTextToText.from_pretrained(
+                    model_config.hf_url, cache_dir=GlobalPathConfig.hf_cache
+                )
+
+                def process(
+                        input_data: DataIncludeImage, device: str
+                ) -> DataIncludeText:
+                    pixel_values = processor(
+                        images=input_data["image"], return_tensors="pt"
+                    ).pixel_values.to(device)
+
+                    with torch.no_grad():
+                        output_ids = model.generate(
+                            pixel_values, max_length=40, num_beams=4
+                        )
+                    preds = tokenizer.batch_decode(output_ids, skip_special_tokens=True)
+                    captions = [p.strip() for p in preds]
+
+                    new_data = {"text-caption": captions}
+                    updated_data = input_data.copy()
+                    updated_data.update(new_data)
+                    return updated_data
+
+                return model, process, {"processor": processor}
 
             case _:
                 raise NotImplementedError(

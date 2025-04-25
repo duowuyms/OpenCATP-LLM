@@ -5,9 +5,10 @@ from typing import Any, Dict, Set, Deque, Tuple
 import torch
 
 from src.config import DEFAULT_START_TASK_NAME, TOOL_DEVICE_LIST, log
-from src.tools import Tool, tool_manager
-from src.types import TaskName, ModelName, CostInfo
 from src.utils import get_available_device, normalize_task_name
+from src.types import TaskName, ModelName, CostInfo
+from src.tools.tool import Tool
+from src.tools.tool_manager import tool_manager
 from .plan_graph import NodeID, PlanNode, PlanGraph
 
 
@@ -43,7 +44,6 @@ class Plan:
                 self.create_graph_from_plan_info(plan_info)
             except IndexError:
                 log.info("Invalid plan detected. Please check the plan structure.")
-                
 
     def create_graph_from_plan_info(self, plan_info: Any) -> None:
         """
@@ -61,7 +61,7 @@ class Plan:
             dependencies = plan_info[i + 1]
 
             assert (
-                len(dependencies) >= 1
+                    len(dependencies) >= 1
             ), "At least one dependency required per operation."
             task_name = normalize_task_name(task_name)
             target_node = self.graph.add_node(task_name)
@@ -119,7 +119,7 @@ class Plan:
         Note: Assuming the plan graph is given in the form of a topologically sorted list of nodes and edges,
         then we can execute the plan along the nodes list.
 
-        Why we do this instead of using search algorithms? Just easy for debug, and don't waste a good nature.  :D
+        Why we do this instead of using search algorithms? Just easy for debug, and don't waste a good nature :D
 
         Args:
             input_data: The initial input to be stored in the start node.
@@ -128,11 +128,12 @@ class Plan:
         for node in self.graph.nodes.values():
             if node.is_start_point:
                 node.set_value(input_data)
-                node.costs = {
+                DEFAULT_COSTS: CostInfo = {
                     "exec_time": 0.0,
                     "short_term_cpu_memory": 0.0,
                     "short_term_gpu_memory": 0.0,
                 }
+                node.costs = DEFAULT_COSTS
                 continue
 
             # Get the input data from all parent nodes
@@ -174,7 +175,7 @@ class Plan:
                 node.price = 0.0
             else:
                 node.calculate_price_and_save()
-            
+
             price_sum += node.price
 
         self.price = price_sum
@@ -244,7 +245,7 @@ class Plan:
         self.is_done = True
         self.clean_tools()
         log.info("Tools clean up. If you want to clean up the entire plan, call plan.cleanup().")
-        
+
         return results
 
     def cleanup(self, clean_tools=True) -> None:
@@ -253,7 +254,7 @@ class Plan:
         1. Clear and reset all attributes, including graph, tools, is_done, price, exec_time, etc.
         2. Call clean_tools() to release or unload all tools;
         """
-        self.graph = None
+        self.graph = PlanGraph()
         self.tools.clear()
         self.is_done = False
         self.price = 0.0
