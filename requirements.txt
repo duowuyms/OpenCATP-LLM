@@ -11,6 +11,7 @@ torchvision==0.21.0
 tqdm==4.67.1
 transformers==4.49.0
 loguru==0.7.3
+ultralytics==8.3.116
 
 networkx==3.4.2
 matplotlib==3.10.1

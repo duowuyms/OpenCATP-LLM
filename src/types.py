@@ -8,17 +8,17 @@ TextContent = str
 
 # Terrible Python Type Hints Made Us Do This
 class DataIncludeImage(TypedDict):
-    image: List[Tensor]
+    image: Tensor
     text: NotRequired[List[TextContent]]
 
 
 class DataIncludeText(TypedDict):
-    image: NotRequired[List[Tensor]]
+    image: NotRequired[Tensor]
     text: List[TextContent]
 
 
 class DataIncludeImageAndText(TypedDict):
-    image: List[Tensor]
+    image: Tensor
     text: List[TextContent]
 
 

@@ -12,11 +12,13 @@ venv/
 
 /dataset
 hf_cache/
+model_cache/
 
 /logs
 /code_test
 /graph.png
 /*.pt
+/test.py
 
 # pixi environments
 .pixi

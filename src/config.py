@@ -39,6 +39,7 @@ DEFAULT_START_TASK_NAME: TaskName = "input_of_query"
 class GlobalPathConfig:
     # recommendation: make hf_cache, data_path, finetune_path as a soft link.
     hf_cache = os.path.join(home_dir, "hf_cache/")
+    model_cache = os.path.join(home_dir, "model_cache/")
     data_path = os.path.join(home_dir, "dataset/")
     result_path = os.path.join(home_dir, "results/")
     finetune_path = os.path.join(home_dir, 'finetune_models')
@@ -399,7 +400,7 @@ class ModelConfig:
         "image_denoising",
     ]
     model_name: str
-    source: Literal["huggingface", "github"]
+    source: Literal["huggingface", "github", "others"]
     hf_url: Optional[str]
 
 
@@ -458,7 +459,19 @@ MODEL_REGISTRY: Dict[TaskName, Dict[ModelName, ModelConfig]] = {
             model_name="detr-resnet-101",
             source="huggingface",
             hf_url="facebook/detr-resnet-101",
-        )
+        ),
+        "detr-resnet-50": ModelConfig(
+            task_name="object_detection",
+            model_name="detr-resnet-50",
+            source="huggingface",
+            hf_url="facebook/detr-resnet-50",
+        ),
+        "yolo-v8": ModelConfig(
+            task_name="object_detection",
+            model_name="yolo-v8",
+            source="others",
+            hf_url=None,
+        ),
     },
     "image_super_resolution": {
         "swin2sr": ModelConfig(

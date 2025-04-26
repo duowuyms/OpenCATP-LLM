@@ -19,8 +19,7 @@ from transformers import (
     AutoModelForSeq2SeqLM,
     AutoModelForCausalLM,
     AutoModelForMaskedLM,
-    DetrImageProcessor,
-    DetrForObjectDetection,
+    AutoModelForObjectDetection,
     ViTImageProcessor,
     ViTForImageClassification,
     Swin2SRForImageSuperResolution,
@@ -318,14 +317,12 @@ class ObjectDetectionTools(GroupedTools):
             self, model_name: ModelName, model_config: ModelConfig
     ) -> Tuple[Any, Callable, Dict]:
         match model_name:
-            case "detr-resnet-101":
-                processor = DetrImageProcessor.from_pretrained(
-                    model_config.hf_url, cache_dir=GlobalPathConfig.hf_cache
+            case "detr-resnet-101" | "detr-resnet-50":
+                processor = AutoImageProcessor.from_pretrained(
+                    model_config.hf_url, cache_dir=GlobalPathConfig.hf_cache, use_fast=True
                 )
-                model = DetrForObjectDetection.from_pretrained(
-                    model_config.hf_url,
-                    cache_dir=GlobalPathConfig.hf_cache,
-                    ignore_mismatched_sizes=True,
+                model = AutoModelForObjectDetection.from_pretrained(
+                    model_config.hf_url, cache_dir=GlobalPathConfig.hf_cache,
                 )
 
                 def process(input_data: DataIncludeImage, device: str) -> Dict[str, Any]:
@@ -366,6 +363,57 @@ class ObjectDetectionTools(GroupedTools):
                     return updated_data
 
                 return model, process, {"processor": processor}
+
+            case "yolo-v8":
+                from ultralytics import YOLO, settings
+
+                settings.update({
+                    "weights_dir": GlobalPathConfig.model_cache,
+                })
+                model = YOLO(os.path.join(GlobalPathConfig.model_cache, 'yolov8n.pt'))
+
+                def process(input_data: DataIncludeImage, device: str) -> Dict[str, Any]:
+
+                    def pad_image(images: torch.Tensor, stride=32, padding_value=114):
+                        _, _, h, w = images.shape
+                        total_h = (h + stride - 1) // stride * stride
+                        total_w = (w + stride - 1) // stride * stride
+                        pad_h = total_h - h
+                        pad_w = total_w - w
+                        images = F.pad(images, (0, pad_w, 0, pad_h), mode="constant", value=padding_value)
+                        images = images.float() / 255.0
+                        return images
+
+                    inputs = pad_image(input_data['image']).to(device)
+                    results = model.predict(
+                        inputs, conf=0.25, stream=False, device=device, verbose=False
+                    )
+
+                    final_outputs = []
+                    predicted_results = []
+                    for r in results:
+                        output = ""
+                        boxes = r.boxes.data.cpu().tolist()
+                        # boxes is 6-dim tensor: [x1, y1, x2, y2, conf, cls], remove the last two dims
+                        boxes = [box[:4] for box in boxes]
+                        scores = r.boxes.conf.cpu().tolist()
+                        labels = r.boxes.cls.cpu().tolist()
+                        label_names = [r.names[int(l)] for l in labels]
+
+                        final_outputs.append(
+                            {"boxes": boxes, "scores": scores, "labels": label_names}
+                        )
+                        for label_name in label_names:
+                            output += label_name
+                            output += ", "
+                        predicted_results.append(output)
+
+                    new_data = {"object_detection_information": results, 'text-object': predicted_results}
+                    updated_data = input_data.copy()
+                    updated_data.update(new_data)
+                    return updated_data
+
+                return model, process, {}
 
             case _:
                 raise NotImplementedError(
