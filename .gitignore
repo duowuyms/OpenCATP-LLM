@@ -16,7 +16,6 @@ hf_cache/
 /logs
 /code_test
 /graph.png
-/test*
 /*.pt
 
 # pixi environments
