@@ -344,7 +344,6 @@ class ObjectDetectionTools(GroupedTools):
                     final_outputs = []
                     predicted_results = []
                     for r in results:
-                        output = ""
                         boxes = r["boxes"].cpu().tolist()
                         scores = r["scores"].cpu().tolist()
                         labels = r["labels"].cpu().tolist()
@@ -352,10 +351,8 @@ class ObjectDetectionTools(GroupedTools):
                         final_outputs.append(
                             {"boxes": boxes, "scores": scores, "labels": label_names}
                         )
-                        for label_name in label_names:
-                            output += label_name
-                            output += ", "
-                        predicted_results.append(output[:-2])
+                        output = ", ".join(label_names)
+                        predicted_results.append(output)
 
                     new_data = {"object_detection_information": final_outputs, 'text-object': predicted_results}
                     updated_data = input_data.copy()
@@ -392,7 +389,6 @@ class ObjectDetectionTools(GroupedTools):
                     final_outputs = []
                     predicted_results = []
                     for r in results:
-                        output = ""
                         boxes = r.boxes.data.cpu().tolist()
                         # boxes is 6-dim tensor: [x1, y1, x2, y2, conf, cls], remove the last two dims
                         boxes = [box[:4] for box in boxes]
@@ -403,9 +399,7 @@ class ObjectDetectionTools(GroupedTools):
                         final_outputs.append(
                             {"boxes": boxes, "scores": scores, "labels": label_names}
                         )
-                        for label_name in label_names:
-                            output += label_name
-                            output += ", "
+                        output = ", ".join(label_names)
                         predicted_results.append(output)
 
                     new_data = {"object_detection_information": results, 'text-object': predicted_results}
