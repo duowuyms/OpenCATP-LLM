@@ -17,6 +17,7 @@ hf_cache/
 /code_test
 /graph.png
 /test*
+/*.pt
 
 # pixi environments
 .pixi
