@@ -7,6 +7,7 @@ import torch
 
 from src.config import ModelConfig
 from src.metrics.runtime_cost import CPUMemoryMonitor
+from src.utils import get_model_parameters_size
 
 
 class Tool:
@@ -132,9 +133,16 @@ class Tool:
 
         return result, costs
 
-    def __repr__(self) -> str:
+    def get_model_info(self) -> Dict:
         """
         Return a string representation of the Tool
-        by delegating to the underlying config object.
         """
-        return repr(self.config)
+        params_size, _ = get_model_parameters_size(self.model)
+        result = {
+            'task': self.config.task_name,
+            'model': self.config.model_name,
+            'params_size': params_size,
+            'device': self.device,
+        }
+
+        return result

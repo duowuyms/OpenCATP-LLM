@@ -70,7 +70,7 @@ def print_graph(graph: PlanGraph, *, save_path=None):
     plt.show()
 
 
-def get_model_parameters_size(model: torch.nn.Module, size: str = 'mb'):
+def get_model_parameters_size(model: torch.nn.Module, size: str = 'mb') -> tuple[str, float]:
     total_bytes = 0
     for p in model.parameters():
         total_bytes += p.numel() * p.element_size()
@@ -82,4 +82,5 @@ def get_model_parameters_size(model: torch.nn.Module, size: str = 'mb'):
     else:
         total_size = total_bytes
 
-    return total_size
+    total_size_str = f"{round(total_size, 2)} {size}"
+    return total_size_str, total_size

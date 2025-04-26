@@ -61,11 +61,16 @@ class GroupedTools(ABC):
             self.load_model(model_name)
         return self.models[model_name]
 
-    def list_models(self) -> Dict[TaskName, List[ModelName]]:
+    def list_models(self) -> Dict[TaskName, List]:
         """
         Return a dict showing which models are currently loaded under this task.
         """
-        return {self.task_name: list(self.models.keys())}
+
+        models_info = [model.get_model_info() for model in self.models.values()]
+
+        return {
+            self.task_name: models_info,
+        }
 
     def _get_model_config(self, model_name: ModelName) -> ModelConfig:
         if self.task_name not in MODEL_REGISTRY:
