@@ -1,0 +1,166 @@
+{
+    "sentiment_analysis": [
+        {
+            "task": "sentiment_analysis",
+            "model": "distilbert-sst2",
+            "params_size": "255.41 mb",
+            "device": "cpu"
+        },
+        {
+            "task": "sentiment_analysis",
+            "model": "bert-base-multilingual",
+            "params_size": "638.43 mb",
+            "device": "cpu"
+        },
+        {
+            "task": "sentiment_analysis",
+            "model": "twitter-roberta-base",
+            "params_size": "475.49 mb",
+            "device": "cpu"
+        }
+    ],
+    "image_classification": [
+        {
+            "task": "image_classification",
+            "model": "vit-base",
+            "params_size": "330.23 mb",
+            "device": "cpu"
+        },
+        {
+            "task": "image_classification",
+            "model": "resnet-50",
+            "params_size": "97.49 mb",
+            "device": "cpu"
+        },
+        {
+            "task": "image_classification",
+            "model": "mobilenet-v2",
+            "params_size": "13.37 mb",
+            "device": "cpu"
+        }
+    ],
+    "image_colorization": [
+        {
+            "task": "image_colorization",
+            "model": "siggraph17",
+            "params_size": "130.41 mb",
+            "device": "cpu"
+        }
+    ],
+    "object_detection": [
+        {
+            "task": "object_detection",
+            "model": "detr-resnet-101",
+            "params_size": "230.65 mb",
+            "device": "cpu"
+        },
+        {
+            "task": "object_detection",
+            "model": "detr-resnet-50",
+            "params_size": "158.4 mb",
+            "device": "cpu"
+        },
+        {
+            "task": "object_detection",
+            "model": "yolo-v8",
+            "params_size": "12.04 mb",
+            "device": "cpu"
+        }
+    ],
+    "image_super_resolution": [
+        {
+            "task": "image_super_resolution",
+            "model": "swin2sr",
+            "params_size": "46.13 mb",
+            "device": "cpu"
+        }
+    ],
+    "image_captioning": [
+        {
+            "task": "image_captioning",
+            "model": "vit-gpt2",
+            "params_size": "912.46 mb",
+            "device": "cpu"
+        },
+        {
+            "task": "image_captioning",
+            "model": "blip-large",
+            "params_size": "1791.89 mb",
+            "device": "cpu"
+        },
+        {
+            "task": "image_captioning",
+            "model": "git-base-coco",
+            "params_size": "673.75 mb",
+            "device": "cpu"
+        }
+    ],
+    "text_summarization": [
+        {
+            "task": "text_summarization",
+            "model": "bart-cnn",
+            "params_size": "1549.88 mb",
+            "device": "cpu"
+        }
+    ],
+    "text_generation": [
+        {
+            "task": "text_generation",
+            "model": "gpt2-base",
+            "params_size": "474.7 mb",
+            "device": "cpu"
+        }
+    ],
+    "visual_question_answering": [
+        {
+            "task": "visual_question_answering",
+            "model": "vilt-vqa",
+            "params_size": "448.56 mb",
+            "device": "cpu"
+        }
+    ],
+    "machine_translation": [
+        {
+            "task": "machine_translation",
+            "model": "t5-base",
+            "params_size": "850.31 mb",
+            "device": "cpu"
+        },
+        {
+            "task": "machine_translation",
+            "model": "t5-small",
+            "params_size": "230.81 mb",
+            "device": "cpu"
+        },
+        {
+            "task": "machine_translation",
+            "model": "t5-large",
+            "params_size": "2813.98 mb",
+            "device": "cpu"
+        }
+    ],
+    "mask_filling": [
+        {
+            "task": "mask_filling",
+            "model": "distilbert-mlm",
+            "params_size": "255.53 mb",
+            "device": "cpu"
+        }
+    ],
+    "image_deblurring": [
+        {
+            "task": "image_deblurring",
+            "model": "restormer-deblur",
+            "params_size": "99.67 mb",
+            "device": "cpu"
+        }
+    ],
+    "image_denoising": [
+        {
+            "task": "image_denoising",
+            "model": "restormer-denoise",
+            "params_size": "99.61 mb",
+            "device": "cpu"
+        }
+    ]
+}
