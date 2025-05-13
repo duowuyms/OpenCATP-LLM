@@ -616,6 +616,46 @@ class ImageDenoisingTools(GroupedTools):
 
                 return model, process, {}
 
+            case "MPRNet":
+                from .github_models.MPRNet.demo import load_model
+                model = load_model("Denoising")
+                img_multiple_of = 8
+
+                def process(
+                        input_data: DataIncludeImage, device: str
+                ) -> DataIncludeImage:
+                    restored_images: List[torch.Tensor] = []
+
+                    with torch.no_grad():
+                        for img_t in input_data["image"]:
+                            c, h, w = img_t.shape
+                            inp = img_t.float().div(255.0).unsqueeze(0).to(device)
+
+                            Hpad = (h + img_multiple_of) // img_multiple_of * img_multiple_of
+                            Wpad = (w + img_multiple_of) // img_multiple_of * img_multiple_of
+                            padh, padw = Hpad - h, Wpad - w
+                            inp = F.pad(inp, (0, padw, 0, padh), mode="reflect")
+
+                            denoised = model(inp)  # shape: (1,3,HpWp)
+                            denoised = torch.clamp(denoised, 0, 1)
+
+                            denoised = denoised[:, :, :h, :w]
+
+                            # (1,3,H,W) -> (H,W,C)
+                            den_np = denoised[0].permute(1, 2, 0).cpu().numpy()
+                            den_np = img_as_ubyte(den_np)  # [0,255] uint8
+
+                            # 回到 (C,H,W) torch.uint8
+                            restored_t = torch.from_numpy(den_np).permute(2, 0, 1)
+                            restored_images.append(restored_t)
+
+                    new_data = {"image": restored_images}
+                    updated_data = input_data.copy()
+                    updated_data.update(new_data)
+                    return updated_data
+
+                return model, process, {}
+
             case _:
                 raise NotImplementedError(
                     f"Model '{model_name}' is not implemented for image_denoising"
@@ -694,6 +734,46 @@ class ImageDeblurringTools(GroupedTools):
                             deblurred_np = deblurred[0].permute(1, 2, 0).cpu().numpy()
                             deblurred_np = img_as_ubyte(deblurred_np)
                             restored_t = torch.from_numpy(deblurred_np).permute(2, 0, 1)
+                            restored_images.append(restored_t)
+
+                    new_data = {"image": restored_images}
+                    updated_data = input_data.copy()
+                    updated_data.update(new_data)
+                    return updated_data
+
+                return model, process, {}
+
+            case "MPRNet":
+                from .github_models.MPRNet.demo import load_model
+                model = load_model("Deblurring")
+                img_multiple_of = 8
+
+                def process(
+                        input_data: DataIncludeImage, device: str
+                ) -> DataIncludeImage:
+                    restored_images: List[torch.Tensor] = []
+
+                    with torch.no_grad():
+                        for img_t in input_data["image"]:
+                            c, h, w = img_t.shape
+                            inp = img_t.float().div(255.0).unsqueeze(0).to(device)
+
+                            Hpad = (h + img_multiple_of) // img_multiple_of * img_multiple_of
+                            Wpad = (w + img_multiple_of) // img_multiple_of * img_multiple_of
+                            padh, padw = Hpad - h, Wpad - w
+                            inp = F.pad(inp, (0, padw, 0, padh), mode="reflect")
+
+                            denoised = model(inp)  # shape: (1,3,HpWp)
+                            denoised = torch.clamp(denoised, 0, 1)
+
+                            denoised = denoised[:, :, :h, :w]
+
+                            # (1,3,H,W) -> (H,W,C)
+                            den_np = denoised[0].permute(1, 2, 0).cpu().numpy()
+                            den_np = img_as_ubyte(den_np)  # [0,255] uint8
+
+                            # 回到 (C,H,W) torch.uint8
+                            restored_t = torch.from_numpy(den_np).permute(2, 0, 1)
                             restored_images.append(restored_t)
 
                     new_data = {"image": restored_images}

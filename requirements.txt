@@ -1,6 +1,8 @@
 bert_score==0.3.13
 einops==0.8.1
 evaluate==0.4.3
+loguru==0.7.3
+natsort==8.4.0
 opencv-python==4.11.0.86
 pillow==11.1.0
 psutil==7.0.0
@@ -10,7 +12,6 @@ torch==2.6.0
 torchvision==0.21.0
 tqdm==4.67.1
 transformers==4.49.0
-loguru==0.7.3
 ultralytics==8.3.116
 
 networkx==3.4.2

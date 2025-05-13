@@ -575,7 +575,13 @@ MODEL_REGISTRY: Dict[TaskName, Dict[ModelName, ModelConfig]] = {
             model_name="restormer-deblur",
             source="github",
             hf_url=None,
-        )
+        ),
+        "MPRNet": ModelConfig(
+            task_name="image_deblurring",
+            model_name="MPRNet",
+            source="github",
+            hf_url=None,
+        ),
     },
     "image_denoising": {
         "restormer-denoise": ModelConfig(
@@ -583,7 +589,13 @@ MODEL_REGISTRY: Dict[TaskName, Dict[ModelName, ModelConfig]] = {
             model_name="restormer-denoise",
             source="github",
             hf_url=None,
-        )
+        ),
+        "MPRNet": ModelConfig(
+            task_name="image_denoising",
+            model_name="MPRNet",
+            source="github",
+            hf_url=None,
+        ),
     },
 }
 
