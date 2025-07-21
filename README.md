@@ -1,6 +1,6 @@
 # OpenCATP-LLM
 
-Hi! This is the official codebase of CATP-LLM and OpenCATP of the paper ``CATP-LLM: Empowering Large Language Models for Cost-Aware Tool Planning''.
+Hi! This is the official codebase of CATP-LLM and OpenCATP of the paper ``CATP-LLM: Empowering Large Language Models for Cost-Aware Tool Planning'' (ICCV 2025).
 
 What is *CATP-LLM*?: CATP-LLM is the first framework that enables the LLMs to effectively balance the trade-off between task performance and execution costs (e.g., tool execution time) during tool planning or tool using.
 
@@ -25,6 +25,7 @@ We will keep updating this repo following the TODO list. This may take some time
   - [Part 1: OpenCATP](#part-1-opencatp)
   - [Part 2: CATP-LLM](#part-2-catp-llm)
 - [How to add new baselines to this repo?](#how-to-add-new-baselines-to-this-repo)
+- [Citation](#citation)
 ## Getting Started 
 
 1. Install Python (recommended version >= 3.11.9).
@@ -412,3 +413,12 @@ Basically, there are simply three steps to add a new baseline to this repo:
 
 3. Write a new entry file `run_your_baseline.py` for running your baseline, just like `run_catpllm.py`.
 
+## Citation
+If you find this repository useful, please cite our paper:
+
+> @inproceedings{wu2025catp,
+>       author = {Wu, Duo and Wang, Jinghe and Meng, Yuan and Zhang, Yanning and Sun, Le and Wang, Zhi},
+>       title = {CATP-LLM: Empowering Large Language Models for Cost-Aware Tool Planning},
+>       year = {2025},
+>       booktitle = {ICCV}
+> }
