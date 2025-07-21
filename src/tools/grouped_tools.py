@@ -486,13 +486,17 @@ class ImageColorizationTools(GroupedTools):
             self, model_name: ModelName, model_config: ModelConfig
     ) -> Tuple[Any, Callable, Dict]:
         match model_name:
-            case "siggraph17":
+            case "siggraph17" | "eccv16":
                 from .github_models.colorization import colorizers
                 import cv2
 
                 preprocess_img = colorizers.preprocess_img
                 postprocess_tens = colorizers.postprocess_tens
-                model = colorizers.siggraph17()
+
+                if model_name == "siggraph17":
+                    model = colorizers.siggraph17()
+                else:
+                    model = colorizers.eccv16()
 
                 def process(
                         input_data: DataIncludeImage, device: str
@@ -525,6 +529,74 @@ class ImageColorizationTools(GroupedTools):
                     updated_data = input_data.copy()
                     updated_data.update(new_data)
                     return updated_data
+
+                return model, process, {}
+
+            case "icolorit":
+                from einops import rearrange
+                from timm.models import create_model  # timm>=0.6
+                from .github_models.iColoriT import modeling
+                from .github_models.iColoriT.utils import lab2rgb, rgb2lab
+
+                model_name = "icolorit_base_4ch_patch16_224"
+                model = create_model(
+                    model_name,
+                    pretrained=False,
+                    drop_path_rate=0.0,
+                    use_rpb=True,
+                    avg_hint=True,
+                    head_mode="cnn",
+                    mask_cent=False,
+                )
+
+                icolorit_root = f"{os.path.dirname(os.path.abspath(__file__))}/github_models/iColoriT"
+                ckpt_path = f"{icolorit_root}/pretrained_models/{model_name}.pth"
+                state = torch.load(ckpt_path, map_location="cpu")
+                model.load_state_dict(state["model"] if "model" in state else state, strict=True)
+
+                patch_size = model.patch_embed.patch_size  # (16,16)
+                input_size = 224
+
+                def process(input_data: DataIncludeImage, device: str) -> DataIncludeImage:
+                    coloured = []
+
+                    for g in input_data["image"]:
+                        if g.shape[0] == 1:
+                            g_rgb = g.repeat(3, 1, 1)
+                        else:
+                            g_rgb = g[:3]
+                        H0, W0 = g_rgb.shape[1:]
+                        img = g_rgb.float().div(255.)
+                        img = F.interpolate(img.unsqueeze(0), size=input_size,
+                                            mode="bilinear", align_corners=False)
+
+                        img_lab = rgb2lab(img.clone().to(device))
+                        h = w = input_size // patch_size[0]
+                        bool_hint = torch.zeros(1, h * w, dtype=torch.bool, device=device)
+
+                        with torch.inference_mode(), torch.amp.autocast(device_type='cuda'):
+                            out = model(img_lab, bool_hint)
+
+                        p1, p2 = patch_size
+                        out = rearrange(out, 'b n (p1 p2 c) -> b n (p1 p2) c',
+                                        p1=p1, p2=p2, c=2)
+                        lab_patches = rearrange(img_lab, 'b c (h p1) (w p2) -> b (h w) (p1 p2) c',
+                                                p1=p1, p2=p2)
+                        pred_lab = torch.cat([lab_patches[..., :1], out], dim=3)
+                        pred_lab = rearrange(pred_lab, 'b (h w) (p1 p2) c -> b c (h p1) (w p2)',
+                                             h=h, w=w, p1=p1, p2=p2)  # (1,3,224,224)
+
+                        pred_rgb = lab2rgb(pred_lab).clamp(0, 1)  # float[0,1]
+                        if (H0, W0) != (input_size, input_size):
+                            pred_rgb = F.interpolate(pred_rgb, size=(H0, W0),
+                                                     mode="bilinear", align_corners=False)
+
+                        pred_uint8 = img_as_ubyte(pred_rgb[0].permute(1, 2, 0).detach().cpu().numpy())
+                        coloured.append(torch.from_numpy(pred_uint8).permute(2, 0, 1))
+
+                    new_data = input_data.copy()
+                    new_data["image"] = coloured
+                    return new_data
 
                 return model, process, {}
 
@@ -656,6 +728,72 @@ class ImageDenoisingTools(GroupedTools):
 
                 return model, process, {}
 
+            case "swin-ir":
+                import requests
+                from .github_models.SwinIR.models.network_swinir import SwinIR
+
+                model = SwinIR(
+                    upscale=1,
+                    in_chans=3,
+                    img_size=128,
+                    window_size=8,
+                    img_range=1.,
+                    depths=[6, 6, 6, 6, 6, 6],
+                    embed_dim=180,
+                    num_heads=[6, 6, 6, 6, 6, 6],
+                    mlp_ratio=2,
+                    upsampler='',
+                    resi_connection='1conv',
+                )
+
+                swinir_root = f"{os.path.dirname(os.path.abspath(__file__))}/github_models/SwinIR"
+                ckpt_name = "005_colorDN_DFWB_s128w8_SwinIR-M_noise25.pth"
+                ckpt_path = f"{swinir_root}/pretrained_models/{ckpt_name}"
+
+                if not os.path.exists(ckpt_path):
+                    url = (
+                        "https://github.com/JingyunLiang/SwinIR/releases/"
+                        f"download/v0.0/{ckpt_name}"
+                    )
+                    log.info(f"[SwinIR] downloading weights from {url}")
+                    r = requests.get(url, allow_redirects=True, timeout=60)
+                    open(ckpt_path, "wb").write(r.content)
+
+                ckpt = torch.load(ckpt_path, map_location="cpu")
+                model.load_state_dict(ckpt["params"] if "params" in ckpt else ckpt, strict=True)
+
+                window_size = 8
+
+                def process(input_data: DataIncludeImage, device: str) -> DataIncludeImage:
+                    restored: List[torch.Tensor] = []
+
+                    with torch.no_grad():
+                        for img_t in input_data["image"]:
+                            if img_t.shape[0] == 1:
+                                img_t = img_t.repeat(3, 1, 1)
+
+                            c, h, w = img_t.shape
+                            inp = img_t.float().div(255.0).unsqueeze(0).to(device)
+
+                            h_pad = (h // window_size + 1) * window_size - h
+                            w_pad = (w // window_size + 1) * window_size - w
+                            inp = torch.cat([inp, torch.flip(inp, [2])], 2)[:, :, :h + h_pad, :]
+                            inp = torch.cat([inp, torch.flip(inp, [3])], 3)[:, :, :, :w + w_pad]
+
+                            out = model(inp)
+                            out = out[..., :h, :w].clamp_(0, 1)
+
+                            out_np = out[0].permute(1, 2, 0).cpu().numpy()  # (H,W,C), float
+                            out_np = img_as_ubyte(out_np)  # uint8
+                            restored.append(torch.from_numpy(out_np).permute(2, 0, 1))
+
+                    new_data = {"image": restored}
+                    updated = input_data.copy()
+                    updated.update(new_data)
+                    return updated
+
+                return model, process, {}
+
             case _:
                 raise NotImplementedError(
                     f"Model '{model_name}' is not implemented for image_denoising"
@@ -776,6 +914,32 @@ class ImageDeblurringTools(GroupedTools):
                             restored_t = torch.from_numpy(den_np).permute(2, 0, 1)
                             restored_images.append(restored_t)
 
+                    new_data = {"image": restored_images}
+                    updated_data = input_data.copy()
+                    updated_data.update(new_data)
+                    return updated_data
+
+                return model, process, {}
+
+            case "deblurgan-v2":
+                from .github_models.DeblurGANv2.predict import Predictor
+
+                predictor = Predictor(cache_dir=GlobalPathConfig.model_cache)
+                model = predictor.model
+
+                def process(
+                        input_data: DataIncludeImage, device: str
+                ) -> DataIncludeImage:
+                    # GAN inference should be in train mode to use actual stats in norm layers,
+                    # it's not a bug
+                    model.train(True)
+                    restored_images: List[torch.Tensor] = []
+                    for img_tensor in input_data["image"]:
+                        img_np = img_tensor.permute(1, 2, 0).cpu().numpy().astype(np.uint8)
+                        pred_np = predictor(img_np, mask=None, device=device)
+
+                        restored_tensor = torch.from_numpy(pred_np).permute(2, 0, 1)
+                        restored_images.append(restored_tensor)
                     new_data = {"image": restored_images}
                     updated_data = input_data.copy()
                     updated_data.update(new_data)

@@ -451,7 +451,19 @@ MODEL_REGISTRY: Dict[TaskName, Dict[ModelName, ModelConfig]] = {
             model_name="siggraph17",
             source="github",
             hf_url=None,
-        )
+        ),
+        "eccv16": ModelConfig(
+            task_name="image_colorization",
+            model_name="eccv16",
+            source="github",
+            hf_url=None,
+        ),
+        "icolorit": ModelConfig(
+            task_name="image_colorization",
+            model_name="icolorit",
+            source="github",
+            hf_url=None,
+        ),
     },
     "object_detection": {
         "detr-resnet-101": ModelConfig(
@@ -582,6 +594,12 @@ MODEL_REGISTRY: Dict[TaskName, Dict[ModelName, ModelConfig]] = {
             source="github",
             hf_url=None,
         ),
+        "deblurgan-v2": ModelConfig(
+            task_name="image_deblurring",
+            model_name="deblurgan-v2",
+            source="github",
+            hf_url=None,
+        )
     },
     "image_denoising": {
         "restormer-denoise": ModelConfig(
@@ -593,6 +611,12 @@ MODEL_REGISTRY: Dict[TaskName, Dict[ModelName, ModelConfig]] = {
         "MPRNet": ModelConfig(
             task_name="image_denoising",
             model_name="MPRNet",
+            source="github",
+            hf_url=None,
+        ),
+        "swin-ir": ModelConfig(
+            task_name="image_denoising",
+            model_name="swin-ir",
             source="github",
             hf_url=None,
         ),
