@@ -16,8 +16,8 @@ class PlanGraph:
     """
 
     name_to_id: Dict[TaskName, NodeID]
-    nodes: Dict[NodeID, 'PlanNode']
-    edges: Dict[EdgeID, 'PlanEdge']
+    nodes: Dict[NodeID, "PlanNode"]
+    edges: Dict[EdgeID, "PlanEdge"]
     _next_node_id: int
     _next_edge_id: int
 
@@ -37,28 +37,25 @@ class PlanGraph:
         self.name_to_id = {}
 
         # Create a default start node
-        self.add_node(
-            task_name=DEFAULT_START_TASK_NAME,
-            is_start_point=True
-        )
+        self.add_node(task_name=DEFAULT_START_TASK_NAME, is_start_point=True)
 
     @property
-    def start_node(self) -> 'PlanNode':
+    def start_node(self) -> "PlanNode":
         """
         Return the default start node of the graph, which is always node_id=0.
         """
         return self.nodes[0]
 
     def add_node(
-            self,
-            task_name: TaskName,
-            *,
-            model_name: Optional[ModelName] = None,
-            is_start_point: bool = False,
-            is_end_point: bool = True,
-            is_done: bool = False,
-            value: Any = None
-    ) -> 'PlanNode':
+        self,
+        task_name: TaskName,
+        *,
+        model_name: Optional[ModelName] = None,
+        is_start_point: bool = False,
+        is_end_point: bool = True,
+        is_done: bool = False,
+        value: Any = None,
+    ) -> "PlanNode":
         """
         Create a new node in the graph with the given task_name, and return it.
         Raises ValueError if a node with the same task_name already exists.
@@ -76,7 +73,7 @@ class PlanGraph:
             is_start_point=is_start_point,
             is_end_point=is_end_point,
             is_done=is_done,
-            value=value
+            value=value,
         )
         # Use a weak reference to avoid circular references
         node.graph = weakref.ref(self)
@@ -87,17 +84,20 @@ class PlanGraph:
 
         return node
 
-    def get_or_add_node(self, task_name: TaskName) -> 'PlanNode':
+    def get_or_add_node(
+        self, task_name: TaskName, model_name: ModelName = None
+    ) -> "PlanNode":
         """
         Retrieve the node with the given task_name.
         If it does not exist, a new one is created.
         """
+        # todo Fix: Now only support a single global tool/model per task name within a plan
         node_id = self.name_to_id.get(task_name)
         if node_id is None:
-            return self.add_node(task_name)
+            return self.add_node(task_name, model_name)
         return self.nodes[node_id]
 
-    def add_edge(self, source: 'PlanNode', target: 'PlanNode') -> 'PlanEdge':
+    def add_edge(self, source: "PlanNode", target: "PlanNode") -> "PlanEdge":
         """
         Create a new directed edge from `source` to `target` and add it to the graph.
         Returns the newly created PlanEdge object.
@@ -105,11 +105,7 @@ class PlanGraph:
         edge_id = self._next_edge_id
         self._next_edge_id += 1
 
-        edge = PlanEdge(
-            edge_id=edge_id,
-            source=source,
-            target=target
-        )
+        edge = PlanEdge(edge_id=edge_id, source=source, target=target)
         # Use a weak reference to the graph
         edge.graph = weakref.ref(self)
 
@@ -182,19 +178,19 @@ class PlanNode:
     price: Optional[float]
     critical_exec_time: Optional[float]
 
-    graph: Optional[weakref.ReferenceType['PlanGraph']]
-    in_edges: Dict[EdgeID, weakref.ReferenceType['PlanEdge']]
-    out_edges: Dict[EdgeID, weakref.ReferenceType['PlanEdge']]
+    graph: Optional[weakref.ReferenceType["PlanGraph"]]
+    in_edges: Dict[EdgeID, weakref.ReferenceType["PlanEdge"]]
+    out_edges: Dict[EdgeID, weakref.ReferenceType["PlanEdge"]]
 
     def __init__(
-            self,
-            node_id: NodeID,
-            task_name: TaskName,
-            model_name: Optional[ModelName] = None,
-            is_start_point: bool = False,
-            is_end_point: bool = True,
-            is_done: bool = False,
-            value: Any = None
+        self,
+        node_id: NodeID,
+        task_name: TaskName,
+        model_name: Optional[ModelName] = None,
+        is_start_point: bool = False,
+        is_end_point: bool = True,
+        is_done: bool = False,
+        value: Any = None,
     ) -> None:
         self.node_id = node_id
         self.task_name = task_name
@@ -244,8 +240,12 @@ class PlanNode:
             raise RuntimeError("Costs information is not set for this node.")
 
         # Price for short-term CPU and GPU
-        short_term_cpu_price = self.costs["short_term_cpu_memory"] * Mcfg.cpu_short_memory_pricing_per_mb
-        short_term_gpu_price = self.costs["short_term_gpu_memory"] * Mcfg.gpu_short_memory_pricing_per_mb
+        short_term_cpu_price = (
+            self.costs["short_term_cpu_memory"] * Mcfg.cpu_short_memory_pricing_per_mb
+        )
+        short_term_gpu_price = (
+            self.costs["short_term_gpu_memory"] * Mcfg.gpu_short_memory_pricing_per_mb
+        )
 
         long_term_cpu_memory = Mcfg.tools_cpu_long_term_mem[self.task_name]
         long_term_gpu_memory = Mcfg.tools_gpu_long_term_mem[self.task_name]
@@ -255,17 +255,31 @@ class PlanNode:
 
         # Find the proper price unit by searching the correct tier
         cpu_index = bisect_left(long_term_cpu_memory_tiers, long_term_cpu_memory)
-        cpu_index = min(cpu_index, len(long_term_cpu_memory_tiers) - 1)  # clamp index if needed
+        cpu_index = min(
+            cpu_index, len(long_term_cpu_memory_tiers) - 1
+        )  # clamp index if needed
         gpu_index = bisect_left(long_term_gpu_memory_tiers, long_term_gpu_memory)
-        gpu_index = min(gpu_index, len(long_term_gpu_memory_tiers) - 1)  # clamp index if needed
+        gpu_index = min(
+            gpu_index, len(long_term_gpu_memory_tiers) - 1
+        )  # clamp index if needed
 
-        long_term_cpu_price_unit = Mcfg.cpu_long_memory_pricing[long_term_cpu_memory_tiers[cpu_index]]
-        long_term_gpu_price_unit = Mcfg.gpu_long_memory_pricing[long_term_gpu_memory_tiers[gpu_index]]
+        long_term_cpu_price_unit = Mcfg.cpu_long_memory_pricing[
+            long_term_cpu_memory_tiers[cpu_index]
+        ]
+        long_term_gpu_price_unit = Mcfg.gpu_long_memory_pricing[
+            long_term_gpu_memory_tiers[gpu_index]
+        ]
 
-        price = self.costs["exec_time"] * (
-                long_term_cpu_memory * long_term_cpu_price_unit + short_term_cpu_price
-                + long_term_gpu_memory * long_term_gpu_price_unit + short_term_gpu_price
-        ) + Mcfg.price_per_request
+        price = (
+            self.costs["exec_time"]
+            * (
+                long_term_cpu_memory * long_term_cpu_price_unit
+                + short_term_cpu_price
+                + long_term_gpu_memory * long_term_gpu_price_unit
+                + short_term_gpu_price
+            )
+            + Mcfg.price_per_request
+        )
 
         self.price = price
         return price
@@ -278,15 +292,15 @@ class PlanEdge:
     """
 
     edge_id: EdgeID
-    graph: Optional[weakref.ReferenceType['PlanGraph']]
-    source: weakref.ReferenceType['PlanNode']
-    target: weakref.ReferenceType['PlanNode']
+    graph: Optional[weakref.ReferenceType["PlanGraph"]]
+    source: weakref.ReferenceType["PlanNode"]
+    target: weakref.ReferenceType["PlanNode"]
 
     def __init__(
-            self,
-            edge_id: EdgeID,
-            source: 'PlanNode',
-            target: 'PlanNode',
+        self,
+        edge_id: EdgeID,
+        source: "PlanNode",
+        target: "PlanNode",
     ) -> None:
         self.edge_id = edge_id
 

@@ -1,6 +1,7 @@
 import os
 from glob import glob
 from typing import Optional
+from collections import OrderedDict
 
 import cv2
 import numpy as np
@@ -15,7 +16,7 @@ os.environ["ALBUMENTATIONS_CHECK_VERSION"] = "False"
 
 
 class Predictor:
-    def __init__(self, model_name: str = '', cache_dir: str = ''):
+    def __init__(self, model_name: str = '', cache_dir: str = '', device: str = 'cuda'):
         torch.hub.set_dir(cache_dir)
         base_dir = os.path.dirname(os.path.abspath(__file__))
         weights_path = os.path.join(base_dir, 'pretrained_models', 'fpn_inception.h5')
@@ -25,8 +26,12 @@ class Predictor:
             config = yaml.load(cfg, Loader=yaml.FullLoader)
         model = get_generator(model_name or config['model'])
         # model = get_generator(model_name)
-        model.load_state_dict(torch.load(weights_path)['model'])
 
+        state = torch.load(weights_path, map_location='cpu')['model']
+        # convert DataParallel to single GPU model
+        new_state = OrderedDict((k.replace('module.', ''), v) for k, v in state.items())
+
+        model.load_state_dict(new_state, strict=True)
         self.model = model
         # self.model.train(True)
         # GAN inference should be in train mode to use actual stats in norm layers,

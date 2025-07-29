@@ -19,8 +19,8 @@ home_dir = os.path.dirname(src_dir)
 # Constants that should typically be reset based on the device environment
 PRETRAINED_LLM_DIR = "/home/data/pretrained_llms/"
 
-TOOL_DEVICE_LIST = ["cuda:0"]
-EVALUATOR_DEVICE_LIST = ["cuda:1"]
+TOOL_DEVICE_LIST = ["cuda:4"]
+EVALUATOR_DEVICE_LIST = ["cuda:5"]
 # the minimum GPU memory allocation limit, default is 3GB
 TOOL_GPU_MEMORY_ALLOC_LIMIT = 3 * 1024 ** 3
 

@@ -2,7 +2,7 @@ debug
 .vscode
 results
 pretrained_models/*
-
+!pretrained_models/.gitkeep
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

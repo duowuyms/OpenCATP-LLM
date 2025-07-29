@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Tuple, Callable
 from runpy import run_path
 import os
+import requests
 
 from skimage.util import img_as_ubyte
 import torch.nn.functional as F
@@ -386,7 +387,12 @@ class ObjectDetectionTools(GroupedTools):
                         images = images.float() / 255.0
                         return images
 
-                    inputs = pad_image(input_data['image']).to(device)
+                    if isinstance(input_data['image'], list):
+                        input_images = torch.stack([img for img in input_data['image']]).to(device)
+                    else:
+                        input_images = input_data['image'].to(device)
+
+                    inputs = pad_image(input_images).to(device)
                     results = model.predict(
                         inputs, conf=0.25, stream=False, device=device, verbose=False
                     )
@@ -551,7 +557,7 @@ class ImageColorizationTools(GroupedTools):
 
                 icolorit_root = f"{os.path.dirname(os.path.abspath(__file__))}/github_models/iColoriT"
                 ckpt_path = f"{icolorit_root}/pretrained_models/{model_name}.pth"
-                state = torch.load(ckpt_path, map_location="cpu")
+                state = torch.load(ckpt_path, map_location="cpu", weights_only=False)
                 model.load_state_dict(state["model"] if "model" in state else state, strict=True)
 
                 patch_size = model.patch_embed.patch_size  # (16,16)
@@ -641,7 +647,7 @@ class ImageDenoisingTools(GroupedTools):
                 }
                 model = Restormer(**parameters)
                 ckpt_path = f"{current_dir}/github_models/Restormer/Denoising/pretrained_models/real_denoising.pth"
-                checkpoint = torch.load(ckpt_path, map_location="cpu")
+                checkpoint = torch.load(ckpt_path, map_location="cpu", weights_only=False)
                 model.load_state_dict(checkpoint["params"])
 
                 def process(
@@ -709,6 +715,9 @@ class ImageDenoisingTools(GroupedTools):
                             inp = F.pad(inp, (0, padw, 0, padh), mode="reflect")
 
                             denoised = model(inp)  # shape: (1,3,HpWp)
+
+                            if isinstance(denoised, (list, tuple)):
+                                denoised = denoised[-1]
                             denoised = torch.clamp(denoised, 0, 1)
 
                             denoised = denoised[:, :, :h, :w]
@@ -759,7 +768,7 @@ class ImageDenoisingTools(GroupedTools):
                     r = requests.get(url, allow_redirects=True, timeout=60)
                     open(ckpt_path, "wb").write(r.content)
 
-                ckpt = torch.load(ckpt_path, map_location="cpu")
+                ckpt = torch.load(ckpt_path, map_location="cpu", weights_only=False)
                 model.load_state_dict(ckpt["params"] if "params" in ckpt else ckpt, strict=True)
 
                 window_size = 8
@@ -839,7 +848,7 @@ class ImageDeblurringTools(GroupedTools):
 
                 # 3) load pretrained weights
                 ckpt_path = f"{current_dir}/github_models/Restormer/Defocus_Deblurring/pretrained_models/single_image_defocus_deblurring.pth"
-                checkpoint = torch.load(ckpt_path, map_location="cpu")
+                checkpoint = torch.load(ckpt_path, map_location="cpu", weights_only=False)
                 model.load_state_dict(checkpoint["params"])
 
                 def process(
@@ -902,6 +911,9 @@ class ImageDeblurringTools(GroupedTools):
                             inp = F.pad(inp, (0, padw, 0, padh), mode="reflect")
 
                             denoised = model(inp)  # shape: (1,3,HpWp)
+                            if isinstance(denoised, (list, tuple)):
+                                denoised = denoised[-1]
+
                             denoised = torch.clamp(denoised, 0, 1)
 
                             denoised = denoised[:, :, :h, :w]
@@ -978,20 +990,16 @@ class ImageCaptioningTools(GroupedTools):
                     model_config.hf_url, cache_dir=GlobalPathConfig.hf_cache
                 )
 
-                def process(
-                        input_data: DataIncludeImage, device: str
-                ) -> DataIncludeText:
+                def process(input_data: DataIncludeImage, device: str) -> DataIncludeText:
                     pixel_values = processor(
                         images=input_data["image"], return_tensors="pt"
                     ).pixel_values.to(device)
-
                     with torch.no_grad():
                         output_ids = model.generate(
-                            pixel_values, max_length=40, num_beams=4
+                            pixel_values=pixel_values, max_length=40, num_beams=4
                         )
                     preds = tokenizer.batch_decode(output_ids, skip_special_tokens=True)
                     captions = [p.strip() for p in preds]
-
                     new_data = {"text-caption": captions}
                     updated_data = input_data.copy()
                     updated_data.update(new_data)
@@ -999,34 +1007,63 @@ class ImageCaptioningTools(GroupedTools):
 
                 return model, process, {"processor": processor, "tokenizer": tokenizer}
 
-            case "blip-large" | "git-base-coco":
-                processor = AutoProcessor.from_pretrained(
-                    model_config.hf_url, cache_dir=GlobalPathConfig.hf_cache, use_fast=True
-                )
-                model = AutoModelForImageTextToText.from_pretrained(
+            case "blip-large":
+                # Use BLIP-specific processor and model
+                from transformers import BlipProcessor, BlipForConditionalGeneration
+                processor = BlipProcessor.from_pretrained(
                     model_config.hf_url, cache_dir=GlobalPathConfig.hf_cache
                 )
+                model = BlipForConditionalGeneration.from_pretrained(
+                    model_config.hf_url, cache_dir=GlobalPathConfig.hf_cache
+                )
+                # BLIP processor includes a tokenizer internally
+                tokenizer = processor.tokenizer
 
-                def process(
-                        input_data: DataIncludeImage, device: str
-                ) -> DataIncludeText:
+                def process(input_data: DataIncludeImage, device: str) -> DataIncludeText:
+                    # Convert input image tensor to pixel values
                     pixel_values = processor(
                         images=input_data["image"], return_tensors="pt"
                     ).pixel_values.to(device)
-
                     with torch.no_grad():
                         output_ids = model.generate(
-                            pixel_values, max_length=40, num_beams=4
+                            pixel_values=pixel_values, max_length=40, num_beams=4
                         )
                     preds = tokenizer.batch_decode(output_ids, skip_special_tokens=True)
                     captions = [p.strip() for p in preds]
-
                     new_data = {"text-caption": captions}
                     updated_data = input_data.copy()
                     updated_data.update(new_data)
                     return updated_data
 
-                return model, process, {"processor": processor}
+                return model, process, {"processor": processor, "tokenizer": tokenizer}
+
+            case "git-base-coco":
+                # Use GIT processor and model (processor wraps CLIP image processor + BERT tokenizer)
+                processor = AutoProcessor.from_pretrained(
+                    model_config.hf_url, cache_dir=GlobalPathConfig.hf_cache
+                )
+                # Load GIT as a causal LM model
+                model = AutoModelForCausalLM.from_pretrained(
+                    model_config.hf_url, cache_dir=GlobalPathConfig.hf_cache
+                )
+                tokenizer = processor.tokenizer  # GitProcessor's tokenizer (BERT-based)
+
+                def process(input_data: DataIncludeImage, device: str) -> DataIncludeText:
+                    pixel_values = processor(
+                        images=input_data["image"], return_tensors="pt"
+                    ).pixel_values.to(device)
+                    with torch.no_grad():
+                        output_ids = model.generate(
+                            pixel_values=pixel_values, max_length=40, num_beams=4
+                        )
+                    preds = tokenizer.batch_decode(output_ids, skip_special_tokens=True)
+                    captions = [p.strip() for p in preds]
+                    new_data = {"text-caption": captions}
+                    updated_data = input_data.copy()
+                    updated_data.update(new_data)
+                    return updated_data
+
+                return model, process, {"processor": processor, "tokenizer": tokenizer}
 
             case _:
                 raise NotImplementedError(

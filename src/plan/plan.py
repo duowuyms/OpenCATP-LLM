@@ -1,10 +1,11 @@
 import gc
+import re
 from collections import deque
 from typing import Any, Dict, Set, Deque, Tuple
 
 import torch
 
-from src.config import DEFAULT_START_TASK_NAME, TOOL_DEVICE_LIST, log
+from src.config import MODEL_REGISTRY, DEFAULT_START_TASK_NAME, TOOL_DEVICE_LIST, log
 from src.utils import get_available_device, normalize_task_name
 from src.types import TaskName, ModelName, CostInfo
 from src.tools.tool import Tool
@@ -40,10 +41,18 @@ class Plan:
 
         # If plan_info is provided, build the graph from it.
         if plan_info:
-            try:
+            # try:
+            task_name_sample = plan_info[0]
+            if not re.search(r"_\d+$", task_name_sample):
                 self.create_graph_from_plan_info(plan_info)
-            except IndexError:
-                log.info("Invalid plan detected. Please check the plan structure.")
+                log.info(
+                    f"Plan info may not have a tool suffix. Using default tool."
+                )
+            else:
+                self.create_graph_from_plan_info_v2(plan_info)
+
+            # except IndexError:
+            #     log.warning("Invalid plan detected. Please check the plan structure.")
 
     def create_graph_from_plan_info(self, plan_info: Any) -> None:
         """
@@ -61,7 +70,7 @@ class Plan:
             dependencies = plan_info[i + 1]
 
             assert (
-                    len(dependencies) >= 1
+                len(dependencies) >= 1
             ), "At least one dependency required per operation."
             task_name = normalize_task_name(task_name)
             target_node = self.graph.add_node(task_name)
@@ -71,6 +80,42 @@ class Plan:
 
                 dependency = normalize_task_name(dependency)
                 source_node = self.graph.get_or_add_node(dependency)
+                self.graph.add_edge(source_node, target_node)
+
+    def create_graph_from_plan_info_v2(self, plan_info: Any) -> None:
+        """
+        Create a plan graph from a plan_info object (e.g., a list describing tasks and dependencies).
+        v2 method will include specific tool information by appending a suffix to each task name, e.g., image_deblurring_1.
+        """
+        for i in range(0, len(plan_info), 2):
+            task_name_suffixed = plan_info[i]
+            dependencies = plan_info[i + 1]
+
+            assert (
+                len(dependencies) >= 1
+            ), "At least one dependency required per operation."
+
+            task_name, tool_index = task_name_suffixed.rsplit("_", 1)
+            tool_list = list(MODEL_REGISTRY[task_name].keys())
+            model_name = tool_list[int(tool_index) - 1]
+
+            task_name = normalize_task_name(task_name)
+            target_node = self.graph.add_node(task_name, model_name=model_name)
+            for dependency in dependencies:
+                if isinstance(dependency, list):
+                    dependency = dependency[0]
+
+                if dependency != DEFAULT_START_TASK_NAME:
+                    dependency, dep_tool_index = dependency.rsplit("_", 1)
+                    dep_tool_list = list(MODEL_REGISTRY[dependency].keys())
+                    dep_model_name = dep_tool_list[int(dep_tool_index) - 1]
+                else:
+                    dep_model_name = None
+
+                dependency = normalize_task_name(dependency)
+                source_node = self.graph.get_or_add_node(
+                    dependency, model_name=dep_model_name
+                )
                 self.graph.add_edge(source_node, target_node)
 
     def prepare_tools(self) -> None:
@@ -211,7 +256,9 @@ class Plan:
                     )
 
             # Add this node's own time
-            node_exec_time = current_node.costs["exec_time"] if current_node.costs else 0.0
+            node_exec_time = (
+                current_node.costs["exec_time"] if current_node.costs else 0.0
+            )
             current_node.critical_exec_time = node_exec_time + max_parent_time
 
             exec_time_total = max(exec_time_total, current_node.critical_exec_time)
@@ -232,19 +279,26 @@ class Plan:
         Returns the collected results from all end-point nodes.
         """
         self.prepare_tools()
-        log.info("Tool preparation done. Executing plan...")
-        try:
-            self._execute_on_graph(input_data, cost_aware=cost_aware)
-            log.info("Plan execution done. Collecting results...")
-            results = self.collect_results()
-            self.calculate_exec_time_and_save()
-            self.calculate_price_and_save()
-        except (KeyError, TypeError):
-            log.info("Invalid plan detected. Please check the plan structure.")
-            results = None
+        log.debug("Tool preparation done. Executing plan...")
+        self._execute_on_graph(input_data, cost_aware=cost_aware)
+        log.debug("Plan execution done. Collecting results...")
+        results = self.collect_results()
+        self.calculate_exec_time_and_save()
+        self.calculate_price_and_save()
+        # try:
+        #     self._execute_on_graph(input_data, cost_aware=cost_aware)
+        #     log.debug("Plan execution done. Collecting results...")
+        #     results = self.collect_results()
+        #     self.calculate_exec_time_and_save()
+        #     self.calculate_price_and_save()
+        # except (KeyError, TypeError):
+        #     log.warning("Invalid plan detected. Please check the plan structure.")
+        #     results = None
         self.is_done = True
         self.clean_tools()
-        log.info("Tools clean up. If you want to clean up the entire plan, call plan.cleanup().")
+        log.debug(
+            "Tools clean up. If you want to clean up the entire plan, call plan.cleanup()."
+        )
 
         return results
 

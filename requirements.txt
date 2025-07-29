@@ -6,11 +6,14 @@ loguru==0.7.3
 natsort==8.4.0
 opencv-python==4.11.0.86
 pillow==11.1.0
+pretrainedmodels==0.7.4
 psutil==7.0.0
 scikit-image==0.25.2
+tensorboardX==2.6.4
 timm==1.0.15
 torch==2.7.0
-torchvision==0.21.0
+torchsummary==1.5.1
+torchvision==0.22.0
 tqdm==4.67.1
 transformers==4.49.0
 ultralytics==8.3.116
