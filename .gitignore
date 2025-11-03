@@ -10,7 +10,6 @@ __pycache__/
 *.py[cod]
 venv/
 
-/multi_tools_test
 /dataset
 hf_cache/
 model_cache/
