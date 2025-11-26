@@ -50,7 +50,7 @@ What is *OpenCATP*?: OpenCATP is the first platform to evaluate the performance 
     ```
     You can customize your own settings by modifying the .yaml file.
 
-8. We provide the fined-tuned lora weights of Qwen2.5-3B used in our paper. We do not provide the lora weights of Llama2-7B as Llama2 is no longer accessible any more. You may download the model weights from here if you are interested in quickly playing our codes: [Qwen2.5-3B-lora-weights](https://drive.google.com/file/d/1Nget5s8orr6f8U0LTlXUprWlprTvFv58/view)
+8. We provide the fined-tuned lora weights of Qwen2.5-3B used in our paper. We do not provide the lora weights of Llama2-7B as Llama2 is no longer accessible any more. You may download the Qwen2.5-3B lora weights from here if you are interested in quickly playing our codes: [Qwen2.5-3B-lora-weights](https://drive.google.com/file/d/1Nget5s8orr6f8U0LTlXUprWlprTvFv58/view)
 
 **NOTE:** It is recommended to configure the several paths specificied in `src/config.GlobalPathConfig` before running this repo. It is also recommended to use soft links for path configuration.
 
