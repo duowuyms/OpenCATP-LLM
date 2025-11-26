@@ -6,16 +6,7 @@ What is *CATP-LLM*?: CATP-LLM is the first framework that enables the LLMs to ef
 
 What is *OpenCATP*?: OpenCATP is the first platform to evaluate the performance of LLMs in cost-aware tool planning, which features diverse tools and difficult tasks, as well as a comprehensive scheme to measure the tool execution costs.
 
-TODO List:
-
-- [x] Release OpenCATP.
-- [x] Release CATP-LLM.
-  - [x] Release Training Codes.
-  - [x] Release Testing Codes.
-- [x] Test codes.
-- [ ] Release model weights of CATP-LLM (after acceptance).
-
-We will keep updating this repo following the TODO list. This may take some time. Please stay tuned! :)
+![iccv25_poster](images/iccv25_poster.png)
 
 
 ## Content
@@ -44,10 +35,12 @@ We will keep updating this repo following the TODO list. This may take some time
     ```sh 
     python test_opencatp.py
     ```
+    
 6. For a simple case of running CATP-LLM, please run:
     ```sh 
     python run_catpllm.py --config_file src/catpllm/data/config_data/default_debug.yaml
     ```
+    
 7. If you want to run CATP-LLM on sequential or non-sequential tasks in OpenCATP, please run:
     ```sh 
     # sequential tasks
@@ -56,6 +49,8 @@ We will keep updating this repo following the TODO list. This may take some time
     python run_catpllm.py --config_file src/catpllm/data/config_data/default_nonseq.yaml
     ```
     You can customize your own settings by modifying the .yaml file.
+
+8. We provide the fined-tuned lora weights of Qwen2.5-3B used in our paper. You may download the model weights from here if you are interested in quickly playing our codes: [Qwen2.5-3B-lora-weights](https://drive.google.com/file/d/1Nget5s8orr6f8U0LTlXUprWlprTvFv58/view)
 
 **NOTE:** It is recommended to configure the several paths specificied in `src/config.GlobalPathConfig` before running this repo. It is also recommended to use soft links for path configuration.
 
@@ -416,9 +411,12 @@ Basically, there are simply three steps to add a new baseline to this repo:
 ## Citation
 If you find this repository useful, please cite our paper:
 
-> @inproceedings{wu2025catp,
->       author = {Wu, Duo and Wang, Jinghe and Meng, Yuan and Zhang, Yanning and Sun, Le and Wang, Zhi},
->       title = {CATP-LLM: Empowering Large Language Models for Cost-Aware Tool Planning},
->       year = {2025},
->       booktitle = {ICCV}
-> }
+```tex
+@inproceedings{wu2025catp,
+  title={Catp-llm: Empowering large language models for cost-aware tool planning},
+  author={Wu, Duo and Wang, Jinghe and Meng, Yuan and Zhang, Yanning and Sun, Le and Wang, Zhi},
+  booktitle={Proceedings of the IEEE/CVF International Conference on Computer Vision},
+  pages={8699--8709},
+  year={2025}
+}
+```
